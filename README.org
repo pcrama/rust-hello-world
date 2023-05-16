@@ -1,0 +1,30 @@
+#+TITLE: rust "Hello, world!" application
+#+AUTHOR: Philippe Crama
+
+* Introduction
+
+Minimal web application to learn rust (web application) programming and
+experiment with ChatGPT (sometimes via https://phind.com).
+I started with the following prompt:
+
+#+begin_quote
+  Teach me how to code in Rust by providing step-by-step instructions
+  to deploy a rust hello-world web application deployed behind lighttpd
+  alongside an existing pi.hole installation on a raspberry pi 2.
+#+end_quote
+
+* Installation
+
+Add the [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]] file to the
+=/etc/lighttpd/conf-available/= directory and create a symlink to enable it:
+#+begin_src shell :exports code
+  cd /etc/lighttpd/conf-enabled
+  sudo ln -s ../conf-available/20-rust-hello-world.conf
+#+end_src
+
+Add the [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]] file to the
+=/etc/lighttpd/conf-available/= directory and create a symlink to enable it:
+#+begin_src shell :exports code
+  cd /etc/lighttpd/conf-enabled
+  sudo ln -s ../conf-available/20-rust-hello-world.conf
+#+end_src
