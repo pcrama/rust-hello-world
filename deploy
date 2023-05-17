@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o xtrace
+
+readonly TARGET_HOST=pi@192.168.1.63
+readonly TARGET_PATH=/home/pi/hello_world/target/release/
+# GLIBC mismatch between my (compilation) host and my target -> statically link
+readonly TARGET_ARCH=arm-unknown-linux-musleabihf
+readonly SOURCE_PATH=./target/${TARGET_ARCH}/release/hello_world
+
+(command -V cargo 2> /dev/null > /dev/null) || source "${HOME}/.cargo/env"
+env PATH="$HOME/build/armv6-linux-musleabihf-cross/usr/bin:$PATH" cargo build --release --target="${TARGET_ARCH}"
+ssh ${TARGET_HOST} 'sudo systemctl stop rust-hello-world.service || echo Could not stop service, I hope everything is going to be OK'
+scp "${SOURCE_PATH}" "${TARGET_HOST}:${TARGET_PATH}"
+ssh ${TARGET_HOST} 'sudo systemctl restart rust-hello-world.service'

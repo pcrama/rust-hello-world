@@ -1,0 +1,17 @@
+# /etc/systemd/system/rust-hello-world.service
+[Unit]
+Description=Rust hello-world web application
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+Environment="RUST_BACKTRACE=1"
+WorkingDirectory=/home/pi/hello_world/target/release/
+ExecStart=/home/pi/hello_world/target/release/hello_world
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

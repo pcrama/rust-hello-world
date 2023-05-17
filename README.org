@@ -15,16 +15,19 @@ I started with the following prompt:
 
 * Installation
 
-Add the [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]] file to the
-=/etc/lighttpd/conf-available/= directory and create a symlink to enable it:
-#+begin_src shell :exports code
-  cd /etc/lighttpd/conf-enabled
-  sudo ln -s ../conf-available/20-rust-hello-world.conf
-#+end_src
+1. Add the [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]] file to the
+   =/etc/lighttpd/conf-available/= directory and create a symlink to enable it:
+   #+begin_src shell :exports code
+     cd /etc/lighttpd/conf-enabled
+     sudo ln -s ../conf-available/20-rust-hello-world.conf
+   #+end_src
 
-Add the [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]] file to the
-=/etc/lighttpd/conf-available/= directory and create a symlink to enable it:
-#+begin_src shell :exports code
-  cd /etc/lighttpd/conf-enabled
-  sudo ln -s ../conf-available/20-rust-hello-world.conf
-#+end_src
+2. Enable =mod_proxy= for lighttpd.
+
+3. Put [[file:doc/rust-hello-world.service][rust-hello-world.service]] into the =/etc/systemd/system/= directory.
+
+4. (Re)start the services
+   #+begin_src shell :exports code
+     sudo systemctl restart rust-hello-world
+     sudo systemctl restart lighttpd
+   #+end_src
