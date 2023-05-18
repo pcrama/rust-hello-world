@@ -9,18 +9,25 @@ pub async fn index() -> HttpResponse {
 }
 
 #[get("/{user_id}/{name}")]
-pub async fn greet_user_id_and_name(path: web::Path<(u32, String)>, tera: web::Data<Tera>) -> HttpResponse {
+pub async fn greet_user_id_and_name(
+    path: web::Path<(u32, String)>,
+    tera: web::Data<Tera>,
+) -> HttpResponse {
     let (user_id, name) = path.into_inner();
     let mut context = tera::Context::new();
     context.insert("name", &name);
     context.insert("user_id", &user_id.to_string());
-    let rendered = tera.render("greet_user_id_and_name.html", &context).unwrap();
+    let rendered = tera
+        .render("greet_user_id_and_name.html", &context)
+        .unwrap();
     HttpResponse::Ok().body(rendered)
 }
 
 #[get("/assets/{filename}")]
 pub async fn static_files(req: HttpRequest) -> actix_web::Result<NamedFile> {
-    let path: PathBuf = ["assets", req.match_info().query("filename")].iter().collect();
+    let path: PathBuf = ["assets", req.match_info().query("filename")]
+        .iter()
+        .collect();
     Ok(NamedFile::open(path)?)
 }
 
@@ -29,17 +36,20 @@ pub async fn static_files(req: HttpRequest) -> actix_web::Result<NamedFile> {
 // also its discussion of `configure' and
 // https://github.com/actix/actix-web/issues/1402
 pub fn create_app() -> App<
-	impl actix_web::dev::ServiceFactory<
-		actix_web::dev::ServiceRequest,
-		Config = (),
-		Response = actix_web::dev::ServiceResponse<impl actix_web::body::MessageBody>,
-		Error = actix_web::Error,
-		InitError = (),
-	>> {
+    impl actix_web::dev::ServiceFactory<
+        actix_web::dev::ServiceRequest,
+        Config = (),
+        Response = actix_web::dev::ServiceResponse<impl actix_web::body::MessageBody>,
+        Error = actix_web::Error,
+        InitError = (),
+    >,
+> {
     App::new()
         .app_data(web::Data::new(Tera::new("templates/**/*").unwrap()))
-        .service(web::scope("/hello-rust")
-            .service(static_files)
-            .service(greet_user_id_and_name)
-            .service(index))
+        .service(
+            web::scope("/hello-rust")
+                .service(static_files)
+                .service(greet_user_id_and_name)
+                .service(index),
+        )
 }
