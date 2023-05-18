@@ -10,6 +10,7 @@ readonly PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_FULL_PATH")")"
 (command -V cargo 2> /dev/null > /dev/null) || source "${HOME}/.cargo/env"
 
 cargo build
+cargo test
 
 (env RUST_BACKTRACE=1 "$PROJECT_DIR/target/debug/hello_world") &
 
