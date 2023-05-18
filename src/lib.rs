@@ -31,6 +31,17 @@ pub async fn static_files(req: HttpRequest) -> actix_web::Result<NamedFile> {
     Ok(NamedFile::open(path)?)
 }
 
+#[get("/forms/meter-readings")]
+pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
+    let mut context = tera::Context::new();
+    context.insert("timestamp", "2023-05-18 20:40"); // TODO: get current time & time zone correct
+
+    // TODO: get SMA hostname & certificate from env & query its web interface with low timeout
+    context.insert("pv_2022_prod_kWh", "1848");
+    let rendered = tera.render("meter_readings_form.html", &context).unwrap();
+    HttpResponse::Ok().body(rendered)
+}
+
 // Type signature would have been impossible without
 // https://github.com/actix/actix-web/issues/1147#issuecomment-1509937750.  See
 // also its discussion of `configure' and
@@ -49,6 +60,7 @@ pub fn create_app() -> App<
         .service(
             web::scope("/hello-rust")
                 .service(static_files)
+                .service(get_meter_readings_form)
                 .service(greet_user_id_and_name)
                 .service(index),
         )

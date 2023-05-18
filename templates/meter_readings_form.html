@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Input meter readings</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/hello-rust/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/hello-rust/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/hello-rust/assets/favicon-16x16.png">
+    <link rel="manifest" href="/hello-rust/assets/site.webmanifest">
+    <style>
+      /* CSS styles for the form */
+      form {
+          display: grid;
+          gap: 10px;
+      }
+
+      .input-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          align-items: center;
+      }
+
+      .input-row label {
+          text-align: right;
+      }
+
+      /* CSS styles for responsive design */
+      @media screen and (max-width: 600px) {
+          .input-row {
+              grid-template-columns: 1fr;
+          }
+      }
+
+      .input-row:last-child {
+          grid-template-columns: 1fr;
+      }
+
+      .input-row:last-child input[type="submit"] {
+          grid-column: 1 / -1;
+          width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <form method="POST" action="/hello-rust/meter-readings">
+      <div class="input-row">
+        <label for="timestamp">Timestamp</label>
+        <input type="text" id="timestamp" name="timestamp" value="{{ timestamp }}">
+      </div>
+      <div class="input-row">
+        <label for="pv_2022_prod_kWh">PV 2022 production [kWh]</label>
+        <input type="number" id="pv_2022_prod_kWh" name="pv_2022_prod_kWh" value="{{ pv_2022_prod_kWh }}" min="0">
+      </div>
+      <div class="input-row">
+        <label for="pv_2012_prod_kWh">PV 2012 production [kWh]</label>
+        <input type="number" id="pv_2012_prod_kWh" name="pv_2012_prod_kWh" min="0">
+      </div>
+      <div class="input-row">
+        <label for="peak_hour_consumption_kWh">1.8.1 Peak hour consumption [kWh]</label>
+        <input type="number" id="peak_hour_consumption_kWh" name="peak_hour_consumption_kWh" min="0">
+      </div>
+      <div class="input-row">
+        <label for="off_hour_consumption_kWh">1.8.2 Off hour consumption [kWh]</label>
+        <input type="number" id="off_hour_consumption_kWh" name="off_hour_consumption_kWh" min="0">
+      </div>
+      <div class="input-row">
+        <label for="peak_hour_injection_kWh">2.8.1 Peak hour injection [kWh]</label>
+        <input type="number" id="peak_hour_injection_kWh" name="peak_hour_injection_kWh" min="0">
+      </div>
+      <div class="input-row">
+        <label for="off_hour_injection_kWh">2.8.2 Off hour injection [kWh]</label>
+        <input type="number" id="off_hour_injection_kWh" name="off_hour_injection_kWh" min="0">
+      </div>
+      <div class="input-row">
+        <label for="gas_m3">Gas [m³]</label>
+        <input type="number" id="gas_m3" name="gas_m3" min="0">
+      </div>
+      <div class="input-row">
+        <label for="water_m3">Water [m³]</label>
+        <input type="number" id="water_m3" name="water_m3" min="0">
+      </div>
+      <div class="input-row">
+        <input type="submit" value="submit" value="Submit Button">
+      </div>
+    </form>
+  </body>
+</html>
