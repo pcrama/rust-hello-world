@@ -54,7 +54,10 @@ async fn test_get_meter_readings_form() {
             "Response does not contain expected HTML: label",
         );
 
-        let expected_input = format!("<input type=\"number\" id=\"{}\" name=\"{}\"", id, id);
+        let expected_input = format!(
+            "<input type=\"text\" pattern=\"^ *(|\\d+([.,]\\d)?) *$\" id=\"{}\" name=\"{}\"",
+            id, id
+        );
         assert!(
             body_str.contains(&expected_input),
             "Response does not contain expected HTML: input",

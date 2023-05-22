@@ -4,18 +4,97 @@ use serde::Deserialize;
 use std::path::PathBuf;
 use tera::Tera;
 
+pub fn empty_string_as_none(
+    name: &str,
+    opt_de: Option<&str>,
+    errors: &mut Vec<String>,
+) -> Option<f64> {
+    match opt_de {
+        None => None,
+        Some(de) => {
+            let opt = de.trim().replace(",", ".");
+            if opt == "" {
+                None
+            } else {
+                opt.parse().map(Some).unwrap_or_else(|e| {
+                    errors.push(format!("{}: {}", name, e));
+                    None
+                })
+            }
+        }
+    }
+}
+
 #[derive(Deserialize)]
 #[allow(non_snake_case)]
-pub struct MeterReadings {
+pub struct MeterReadingsUserInput {
     timestamp: String,
-    pv_2022_prod_kWh: u32,
-    pv_2012_prod_kWh: u32,
-    peak_hour_consumption_kWh: u32,
-    off_hour_consumption_kWh: u32,
-    peak_hour_injection_kWh: u32,
-    off_hour_injection_kWh: u32,
-    gas_m3: u32,
-    water_m3: u32,
+    pv_2022_prod_kWh: Option<String>,
+    pv_2012_prod_kWh: Option<String>,
+    peak_hour_consumption_kWh: Option<String>,
+    off_hour_consumption_kWh: Option<String>,
+    peak_hour_injection_kWh: Option<String>,
+    off_hour_injection_kWh: Option<String>,
+    gas_m3: Option<String>,
+    water_m3: Option<String>,
+}
+
+#[allow(non_snake_case)]
+struct MeterReadings {
+    timestamp: String,
+    pv_2022_prod_kWh: Option<f64>,
+    pv_2012_prod_kWh: Option<f64>,
+    peak_hour_consumption_kWh: Option<f64>,
+    off_hour_consumption_kWh: Option<f64>,
+    peak_hour_injection_kWh: Option<f64>,
+    off_hour_injection_kWh: Option<f64>,
+    gas_m3: Option<f64>,
+    water_m3: Option<f64>,
+}
+
+fn parse_meter_values(ui: MeterReadingsUserInput) -> core::result::Result<MeterReadings, String> {
+    let error_messages: &mut Vec<String> = &mut vec![];
+    let result = MeterReadings {
+        timestamp: ui.timestamp.clone(),
+        pv_2012_prod_kWh: empty_string_as_none(
+            "pv_2012_prod_kWh",
+            ui.pv_2012_prod_kWh.as_deref(),
+            error_messages,
+        ),
+        pv_2022_prod_kWh: empty_string_as_none(
+            "pv_2022_prod_kWh",
+            ui.pv_2022_prod_kWh.as_deref(),
+            error_messages,
+        ),
+        peak_hour_consumption_kWh: empty_string_as_none(
+            "peak_hour_consumption_kWh",
+            ui.peak_hour_consumption_kWh.as_deref(),
+            error_messages,
+        ),
+        off_hour_consumption_kWh: empty_string_as_none(
+            "off_hour_consumption_kWh",
+            ui.off_hour_consumption_kWh.as_deref(),
+            error_messages,
+        ),
+        peak_hour_injection_kWh: empty_string_as_none(
+            "peak_hour_injection_kWh",
+            ui.peak_hour_injection_kWh.as_deref(),
+            error_messages,
+        ),
+        off_hour_injection_kWh: empty_string_as_none(
+            "off_hour_injection_kWh",
+            ui.off_hour_injection_kWh.as_deref(),
+            error_messages,
+        ),
+        gas_m3: empty_string_as_none("gas_m3", ui.gas_m3.as_deref(), error_messages),
+        water_m3: empty_string_as_none("water_m3", ui.water_m3.as_deref(), error_messages),
+    };
+
+    if error_messages.len() == 0 {
+        Ok(result)
+    } else {
+        Err(error_messages.join("; "))
+    }
 }
 
 #[get("/")]
@@ -58,22 +137,32 @@ pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
 }
 
 #[post("/meter-readings")]
-pub async fn submit_meter_readings(form: web::Form<MeterReadings>) -> HttpResponse {
-    // Perform the desired operations with the submitted data here
-    log::info!(
-        "Received data for {}: pv_2022_prod_kWh={}, pv_2012_prod_kWh={}, peak_hour_consumption_kWh={}, off_hour_consumption_kWh={}, peak_hour_injection_kWh={}, off_hour_injection_kWh={}, gas_m3={}, water_m3={}",
-        form.timestamp,
-	form.pv_2022_prod_kWh,
-	form.pv_2012_prod_kWh,
-	form.peak_hour_consumption_kWh,
-	form.off_hour_consumption_kWh,
-	form.peak_hour_injection_kWh,
-	form.off_hour_injection_kWh,
-	form.gas_m3,
-	form.water_m3,);
-
-    // Return a response indicating success or failure
-    HttpResponse::Ok().body("Form submitted successfully")
+pub async fn submit_meter_readings(
+    web::Form(form): web::Form<MeterReadingsUserInput>,
+) -> HttpResponse {
+    match parse_meter_values(form) {
+        Ok(mr) => {
+            // Perform the desired operations with the submitted data here
+            let msg = format!(
+                "Received data for {}: pv_2022_prod_kWh={}, pv_2012_prod_kWh={}, peak_hour_consumption_kWh={}, off_hour_consumption_kWh={}, peak_hour_injection_kWh={}, off_hour_injection_kWh={}, gas_m3={}, water_m3={}",
+                mr.timestamp,
+		mr.pv_2022_prod_kWh.unwrap_or(-99.9),
+		mr.pv_2012_prod_kWh.unwrap_or(-99.9),
+		mr.peak_hour_consumption_kWh.unwrap_or(-99.9),
+		mr.off_hour_consumption_kWh.unwrap_or(-99.9),
+		mr.peak_hour_injection_kWh.unwrap_or(-99.9),
+		mr.off_hour_injection_kWh.unwrap_or(-99.9),
+		mr.gas_m3.unwrap_or(-99.9),
+		mr.water_m3.unwrap_or(-99.9),
+	    );
+            log::info!("{}", msg);
+            HttpResponse::Ok().body(format!("Form submitted successfully: {}", msg))
+        }
+        Err(s) => {
+            log::error!("Unable to parse inputs: {}", s);
+            HttpResponse::Ok().body(format!("Bad input data: {}", s))
+        }
+    }
 }
 
 // Type signature would have been impossible without

@@ -50,35 +50,35 @@
       </div>
       <div class="input-row">
         <label for="pv_2022_prod_kWh">PV 2022 production [kWh]</label>
-        <input type="number" id="pv_2022_prod_kWh" name="pv_2022_prod_kWh" value="{{ pv_2022_prod_kWh }}" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="pv_2022_prod_kWh" name="pv_2022_prod_kWh" value="{{ pv_2022_prod_kWh }}" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="pv_2012_prod_kWh">PV 2012 production [kWh]</label>
-        <input type="number" id="pv_2012_prod_kWh" name="pv_2012_prod_kWh" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="pv_2012_prod_kWh" name="pv_2012_prod_kWh" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="peak_hour_consumption_kWh">1.8.1 Peak hour consumption [kWh]</label>
-        <input type="number" id="peak_hour_consumption_kWh" name="peak_hour_consumption_kWh" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="peak_hour_consumption_kWh" name="peak_hour_consumption_kWh" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="off_hour_consumption_kWh">1.8.2 Off hour consumption [kWh]</label>
-        <input type="number" id="off_hour_consumption_kWh" name="off_hour_consumption_kWh" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="off_hour_consumption_kWh" name="off_hour_consumption_kWh" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="peak_hour_injection_kWh">2.8.1 Peak hour injection [kWh]</label>
-        <input type="number" id="peak_hour_injection_kWh" name="peak_hour_injection_kWh" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="peak_hour_injection_kWh" name="peak_hour_injection_kWh" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="off_hour_injection_kWh">2.8.2 Off hour injection [kWh]</label>
-        <input type="number" id="off_hour_injection_kWh" name="off_hour_injection_kWh" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="off_hour_injection_kWh" name="off_hour_injection_kWh" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="gas_m3">Gas [m³]</label>
-        <input type="number" id="gas_m3" name="gas_m3" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="gas_m3" name="gas_m3" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <label for="water_m3">Water [m³]</label>
-        <input type="number" id="water_m3" name="water_m3" min="0">
+        <input type="text" pattern="^ *(|\d+([.,]\d)?) *$" id="water_m3" name="water_m3" placeholder="Empty field or positive number with at most one decimal">
       </div>
       <div class="input-row">
         <input type="submit" value="submit" value="Submit Button">
