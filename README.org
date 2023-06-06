@@ -27,7 +27,19 @@ I started with the following prompt:
 3. Put [[file:doc/rust-hello-world.service][rust-hello-world.service]] into the =/etc/systemd/system/= directory and
    enable the service =sudo systemctl restart rust-hello-world=.
 
-4. (Re)start the services
+4. Setup certificate and environment variables (in service file)
+   #+begin_src shell :exports code
+     RUST_HELLO_WORLD_REMOTE_SERVER_URL=https://SMA3xxxxxxxx5.lan/dyn/getDashValues.json
+     RUST_HELLO_WORLD_REMOTE_SERVER_CERT=/some/location/that/survives/reboots/inverter-webui-cert.pem
+     curl --insecure --silent "${RUST_HELLO_WORLD_REMOTE_SERVER_URL}" -w '%{certs}' \
+         | sed -ne '/--BEGIN CERTIFICATE--/,/--END CERTIFICATE--/p' \
+               > "${RUST_HELLO_WORLD_REMOTE_SERVER_CERT}"
+   #+end_src
+   - For =RUST_HELLO_WORLD_REMOTE_SERVER_URL=, you can use this command line (don't forget to append the path)
+     #+begin_src shell :exports code
+       cut --delimiter=' ' --fields=3,4 "$(sed -ne 's/^dhcp-leasefile=//p' /etc/dnsmasq.d/*dhcp.conf)"
+     #+end_src
+5. (Re)start the services
    #+begin_src shell :exports code
      sudo systemctl restart rust-hello-world
      sudo systemctl restart lighttpd

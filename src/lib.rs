@@ -1,7 +1,13 @@
 use actix_files::NamedFile;
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse};
-use serde::Deserialize;
+use reqwest::{Client, StatusCode};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::fs::File;
+use std::io::Read;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::time::Duration;
 use tera::Tera;
 
 pub fn empty_string_as_none(
@@ -25,18 +31,46 @@ pub fn empty_string_as_none(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Serialize)]
 #[allow(non_snake_case)]
 pub struct MeterReadingsUserInput {
-    timestamp: String,
-    pv_2022_prod_kWh: Option<String>,
-    pv_2012_prod_kWh: Option<String>,
-    peak_hour_consumption_kWh: Option<String>,
-    off_hour_consumption_kWh: Option<String>,
-    peak_hour_injection_kWh: Option<String>,
-    off_hour_injection_kWh: Option<String>,
-    gas_m3: Option<String>,
-    water_m3: Option<String>,
+    pub timestamp: String,
+    pub pv_2022_prod_kWh: Option<String>,
+    pub pv_2012_prod_kWh: Option<String>,
+    pub peak_hour_consumption_kWh: Option<String>,
+    pub off_hour_consumption_kWh: Option<String>,
+    pub peak_hour_injection_kWh: Option<String>,
+    pub off_hour_injection_kWh: Option<String>,
+    pub gas_m3: Option<String>,
+    pub water_m3: Option<String>,
+}
+
+impl ToString for MeterReadingsUserInput {
+    #[allow(non_snake_case)]
+    fn to_string(&self) -> String {
+        let timestamp = self.timestamp.to_string();
+        let pv_2022_prod_kWh = self.pv_2022_prod_kWh.as_deref().unwrap_or("null");
+        let pv_2012_prod_kWh = self.pv_2012_prod_kWh.as_deref().unwrap_or("null");
+        let peak_hour_consumption_kWh = self.peak_hour_consumption_kWh.as_deref().unwrap_or("null");
+        let off_hour_consumption_kWh = self.off_hour_consumption_kWh.as_deref().unwrap_or("null");
+        let peak_hour_injection_kWh = self.peak_hour_injection_kWh.as_deref().unwrap_or("null");
+        let off_hour_injection_kWh = self.off_hour_injection_kWh.as_deref().unwrap_or("null");
+        let gas_m3 = self.gas_m3.as_deref().unwrap_or("null");
+        let water_m3 = self.water_m3.as_deref().unwrap_or("null");
+
+        format!(
+            "MeterReadingsUserInput(timestamp={}, pv_2022_prod_kWh={}, pv_2012_prod_kWh={}, peak_hour_consumption_kWh={}, off_hour_consumption_kWh={}, peak_hour_injection_kWh={}, off_hour_injection_kWh={}, gas_m3={}, water_m3={})",
+            timestamp,
+            pv_2022_prod_kWh,
+            pv_2012_prod_kWh,
+            peak_hour_consumption_kWh,
+            off_hour_consumption_kWh,
+            peak_hour_injection_kWh,
+            off_hour_injection_kWh,
+            gas_m3,
+            water_m3
+        )
+    }
 }
 
 #[allow(non_snake_case)]
@@ -125,13 +159,90 @@ pub async fn static_files(req: HttpRequest) -> actix_web::Result<NamedFile> {
     Ok(NamedFile::open(path)?)
 }
 
+fn get_env_var(name: &str) -> core::result::Result<String, String> {
+    return std::env::var(name).map_err(|_| format!("Set up '{}' with a value.", name));
+}
+
+pub fn get_ip_address(dhcp_lease_file: &str, hostname: &str) -> String {
+    let file = match File::open(dhcp_lease_file) {
+        Ok(f) => f,
+        Err(_) => return hostname.to_string(),
+    };
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => return hostname.to_string(),
+        };
+        let columns: Vec<&str> = line.split_whitespace().collect();
+
+        if columns.len() >= 4 && columns[3].eq_ignore_ascii_case(hostname) {
+            return columns[2].to_string()
+        }
+    }
+
+    return hostname.to_string();
+}
+
+async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
+    let cert_file_name = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_CERT")?;
+    let mut buf = Vec::new();
+    // TODO: read file async
+    File::open(&cert_file_name).map_err(|e| format!("Unable to open {}: {}", cert_file_name, e))?
+        .read_to_end(&mut buf).map_err(|e| format!("Unable to read {}: {}", cert_file_name, e))?;
+
+    let client = Client::builder()
+        .danger_accept_invalid_certs(true)
+        .add_root_certificate(
+            reqwest::Certificate::from_pem(&buf)
+                .map_err(|e| format!("Failed to load the server certificate: {}", e))?,
+        )
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
+
+    let dashboard_url = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_URL")?;
+    let response = client.get(dashboard_url)
+        .timeout(Duration::from_secs(1))
+        .send()
+        .await
+        .map_err(|_| "Request timed out")?;
+
+    if response.status() != StatusCode::OK {
+        return Err("Failed to fetch dashboard value".into());
+    }
+
+    let response_text = response.text().await.map_err(|_| "Can't extract text from response")?;
+    print!("response_text={}", response_text);
+    let json: Value = serde_json::from_str(response_text.as_str())
+        .map_err(|e| format!("Unable to parse JSON: {}", e))?;
+    let value = json["result"]["0199-xxxxx9BD"]["6400_00260100"]["1"][0]["val"]
+        .as_f64()
+        .ok_or("Invalid JSON response")?;
+
+    Ok(value)
+}
+
 #[get("/forms/meter-readings")]
 pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
     let mut context = tera::Context::new();
     context.insert("timestamp", "2023-05-18 20:40"); // TODO: get current time & time zone correct
 
-    // TODO: get SMA hostname & certificate from env & query its web interface with low timeout
-    context.insert("pv_2022_prod_kWh", "1848");
+    match fetch_dashboard_value().await {
+        Ok(value) => {
+            context.insert("pv_2022_prod_kWh", &value.to_string());
+        }
+        Err(err) => {
+            log::error!("Failed to fetch dashboard value: {}", err);
+            let error_message: String = if err.to_string().contains("Request timed out") {
+                "Timeout".to_string()
+            } else {
+                format!("Error fetching value: {}", err)
+            };
+            context.insert("pv_2022_prod_kWh", error_message.as_str());
+        }
+    }
+
     let rendered = tera.render("meter_readings_form.html", &context).unwrap();
     HttpResponse::Ok().body(rendered)
 }

@@ -81,13 +81,10 @@ async fn test_submit_meter_readings() {
         water_m3: Some("6,5  ".to_string()),
     };
 
-    // Encode the form input into the body content
-    let form_body = form_input.to_string();
-
     // Create a test request and send it to the server
     let req = test::TestRequest::post()
         .uri("/hello-rust/meter-readings")
-        .set_form(form_body)
+        .set_form(form_input)
         .to_request();
     let resp = test::call_service(&mut app, req).await;
 
