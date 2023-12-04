@@ -29,17 +29,19 @@ I started with the following prompt:
 
 4. Setup certificate and environment variables (in service file)
    #+begin_src shell :exports code
-     RUST_HELLO_WORLD_REMOTE_SERVER_URL=https://SMA3xxxxxxxx5.lan/dyn/getDashValues.json
+     RUST_HELLO_WORLD_DHCP_LEASES="/etc/pihole/dhcp.leases"
+     RUST_HELLO_WORLD_REMOTE_SERVER_HOST="SMA3xxxxxxxx5"
+     RUST_HELLO_WORLD_REMOTE_SERVER_PATH="dyn/getDashValues.json"
      RUST_HELLO_WORLD_REMOTE_SERVER_CERT=/some/location/that/survives/reboots/inverter-webui-cert.pem
-     curl --insecure --silent "${RUST_HELLO_WORLD_REMOTE_SERVER_URL}" -w '%{certs}' \
+     curl --insecure \
+          --silent \
+          "https://${RUST_HELLO_WORLD_REMOTE_SERVER_HOST}/{$RUST_HELLO_WORLD_REMOTE_SERVER_PATH}" \
+          -w '%{certs}' \
          | sed -ne '/--BEGIN CERTIFICATE--/,/--END CERTIFICATE--/p' \
                > "${RUST_HELLO_WORLD_REMOTE_SERVER_CERT}"
    #+end_src
-   - For =RUST_HELLO_WORLD_REMOTE_SERVER_URL=, you can use this command line (don't forget to append the path)
-     #+begin_src shell :exports code
-       cut --delimiter=' ' --fields=3,4 "$(sed -ne 's/^dhcp-leasefile=//p' /etc/dnsmasq.d/*dhcp.conf)"
-     #+end_src
-5. (Re)start the services
+5. Run the [[file:deploy][deploy]] script
+6. (Re)start the services
    #+begin_src shell :exports code
      sudo systemctl restart rust-hello-world
      sudo systemctl restart lighttpd
@@ -61,3 +63,65 @@ dirty =sed (1)= hack:
       | python3 -m json.tool --compact \
       | sed -e 's/.*"6400_00260100":{"1":\[{"val":\([0-9][0-9]*\)}.*/\1/'
 #+end_src
+
+OpenAI says:
+To make a web request and extract the value from the JSON response, you can use the reqwest crate for making HTTP requests and the serde_json crate for parsing JSON. Here's an updated version of the get_meter_readings_form function that includes the web request and JSON parsing:
+
+rust
+
+use reqwest::{Client, StatusCode};
+use serde_json::Value;
+
+async fn fetch_dashboard_value() -> Result<f64, Box<dyn std::error::Error>> {
+    let cert = std::env::var("RUST_HELLO_WORLD_REMOTE_SERVER_CERT")?;
+    let client = Client::builder()
+        .danger_accept_invalid_certs(true)
+        .add_root_certificate(
+            reqwest::Certificate::from_pem(cert.as_bytes())
+                .map_err(|_| "Failed to load the server certificate")?,
+        )
+        .build()?;
+
+    let response = client
+        .get("https://example.com/dyn/getDashValues.json")
+        .send()
+        .await?;
+
+    if response.status() != StatusCode::OK {
+        return Err("Failed to fetch dashboard value".into());
+    }
+
+    let json: Value = response.json().await?;
+    let value = json["result"]["0199xxx99D"]["6400123"][0]["0"]
+        .as_str()
+        .ok_or("Invalid JSON response")?
+        .parse::<f64>()
+        .map_err(|_| "Failed to parse value as float")?;
+
+    Ok(value)
+}
+
+#[get("/forms/meter-readings")]
+pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
+    let mut context = tera::Context::new();
+    context.insert("timestamp", "2023-05-18 20:40");
+
+    match fetch_dashboard_value().await {
+        Ok(value) => {
+            context.insert("pv_2022_prod_kWh", value.to_string());
+        }
+        Err(err) => {
+            log::error!("Failed to fetch dashboard value: {}", err);
+            context.insert("pv_2022_prod_kWh", "Error fetching value".to_string());
+        }
+    }
+
+    let rendered = tera.render("meter_readings_form.html", &context).unwrap();
+    HttpResponse::Ok().body(rendered)
+}
+
+This code defines a new asynchronous function fetch_dashboard_value that makes a web request to the specified URL and fetches the JSON response. It extracts the value from the JSON and parses it into a f64. In the get_meter_readings_form function, the fetch_dashboard_value function is called, and the resulting value is inserted into the Tera context.
+
+Note that the code uses the danger_accept_invalid_certs method of the reqwest::ClientBuilder to accept a self-signed certificate. It also uses the add_root_certificate method to provide the server certificate from the RUST_HELLO_WORLD_REMOTE_SERVER_CERT environment variable.
+
+Make sure to replace the URL https://example.com/dyn/getDashValues.json with the actual URL you want to fetch the data from.

@@ -201,7 +201,11 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
         .build()
         .map_err(|e| format!("Failed to create client: {}", e))?;
 
-    let dashboard_url = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_URL")?;
+    let dashboard_url = format!(
+        "https://{}/{}",
+        get_ip_address(&get_env_var("RUST_HELLO_WORLD_DHCP_LEASES")?, &get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_HOST")?),
+        get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_PATH")?
+    );
     let response = client.get(dashboard_url)
         .timeout(Duration::from_secs(1))
         .send()
