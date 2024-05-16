@@ -49,3 +49,14 @@ dirty =sed (1)= hack:
       | python3 -m json.tool --compact \
       | sed -e 's/.*"6400_00260100":{"1":\[{"val":\([0-9][0-9]*\)}.*/\1/'
 #+end_src
+
+** back4app
+#+begin_src shell :exports code
+  application_id="application_id"
+  rest_api_key="REST API Key, not the master key"
+  curl -X POST \
+       -H "X-Parse-Application-Id: $application_id" \
+       -H "X-Parse-REST-API-Key: $rest_api_key" \
+       https://parseapi.back4app.com/classes/MeterReadings202303 \
+       --json '{"timestamp": {"__type": "Date", "iso": "2024-05-14T03:50:00.000+00:00"}, "pv2012_kWh": 52372.99, "pv2022_kWh": 4795.594}'
+#+end_src
