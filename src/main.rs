@@ -8,6 +8,7 @@ fn configure_logging() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    println!("Hello, world!");
     configure_logging();
     log::info!("Starting HttpServer...");
     actix_web::HttpServer::new(|| create_app())
