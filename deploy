@@ -7,8 +7,8 @@ set -o xtrace
 
 readonly SCRIPT_FULL_PATH="$(realpath "$0")"
 readonly PROJECT_DIR="$(dirname "$SCRIPT_FULL_PATH")"
-readonly TARGET_HOST=pi@192.168.1.63
-readonly TARGET_PATH=/home/pi/hello_world/target/release/
+readonly TARGET_HOST=dietpi@192.168.129.250
+readonly TARGET_PATH=/home/dietpi/hello_world/target/release/
 # GLIBC mismatch between my (compilation) host and my target -> statically link
 readonly TARGET_ARCH=arm-unknown-linux-musleabihf
 readonly SOURCE_PATH="${PROJECT_DIR}/target/${TARGET_ARCH}/release/hello_world"
