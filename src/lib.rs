@@ -1,13 +1,11 @@
 use actix_files::NamedFile;
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse};
-use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs::File;
-use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::time::Duration;
+use tokio::process::Command;
 use tera::Tera;
 
 pub fn empty_string_as_none(
@@ -186,39 +184,37 @@ pub fn get_ip_address(dhcp_lease_file: &str, hostname: &str) -> String {
 }
 
 async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
-    let cert_file_name = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_CERT")?;
-    let mut buf = Vec::new();
-    // TODO: read file async
-    File::open(&cert_file_name).map_err(|e| format!("Unable to open {}: {}", cert_file_name, e))?
-        .read_to_end(&mut buf).map_err(|e| format!("Unable to read {}: {}", cert_file_name, e))?;
+    let server_host = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_HOST")
+        .map_err(|e| format!("Missing environment variable: {}", e))?;
+    let server_path = get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_PATH")
+        .map_err(|e| format!("Missing environment variable: {}", e))?;
+    let dashboard_url = format!("https://{}/{}", server_host, server_path);
 
-    let client = Client::builder()
-        .danger_accept_invalid_certs(true)
-        .add_root_certificate(
-            reqwest::Certificate::from_pem(&buf)
-                .map_err(|e| format!("Failed to load the server certificate: {}", e))?,
-        )
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-
-    let dashboard_url = format!(
-        "https://{}/{}",
-        get_ip_address(&get_env_var("RUST_HELLO_WORLD_DHCP_LEASES")?, &get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_HOST")?),
-        get_env_var("RUST_HELLO_WORLD_REMOTE_SERVER_PATH")?
-    );
-    let response = client.get(dashboard_url)
-        .timeout(Duration::from_secs(1))
-        .send()
+    // Call the external curl command asynchronously
+    let response = Command::new("curl")
+        .arg("--silent")  // Silent mode, suppresses progress bar
+        .arg("--insecure")  // don't worry about certificates
+        .arg("--connect-timeout").arg("1")
+        .arg("--max-time").arg("2")
+        .arg(dashboard_url)
+        .output()
         .await
-        .map_err(|_| "Request timed out")?;
+        .map_err(|e| format!("Failed to execute curl: {}", e))?;
 
-    if response.status() != StatusCode::OK {
-        return Err("Failed to fetch dashboard value".into());
+    if !response.status.success() {
+        return Err(format!(
+            "Curl request failed with status: {}... {}",
+            response.status,
+            std::str::from_utf8(&response.stderr).map_err(|e| format!("Failed to decode curl's stderr: {}", e))?
+        ));
     }
 
-    let response_text = response.text().await.map_err(|_| "Can't extract text from response")?;
+    // Convert the output to a UTF-8 string
+    let response_text = std::str::from_utf8(&response.stdout)
+        .map_err(|e| format!("Failed to parse curl response as UTF-8: {}", e))?;
+
     print!("response_text={}", response_text);
-    let json: Value = serde_json::from_str(response_text.as_str())
+    let json: Value = serde_json::from_str(response_text)
         .map_err(|e| format!("Unable to parse JSON: {}", e))?;
     let value = json["result"]["0199-xxxxx9BD"]["6400_00260100"]["1"][0]["val"]
         .as_f64()
@@ -234,7 +230,7 @@ pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
 
     match fetch_dashboard_value().await {
         Ok(value) => {
-            context.insert("pv_2022_prod_kWh", &value.to_string());
+            context.insert("pv_2022_prod_kWh", &(value / 1000.0).to_string());
         }
         Err(err) => {
             log::error!("Failed to fetch dashboard value: {}", err);
