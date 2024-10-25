@@ -1,12 +1,14 @@
 use actix_files::NamedFile;
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse};
+use chrono::Utc;
+use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use tokio::process::Command;
 use tera::Tera;
+use tokio::process::Command;
 
 pub fn empty_string_as_none(
     name: &str,
@@ -226,7 +228,8 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
 #[get("/forms/meter-readings")]
 pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
     let mut context = tera::Context::new();
-    context.insert("timestamp", "2023-05-18 20:40"); // TODO: get current time & time zone correct
+    let timezone: Tz = get_env_var("RUST_HELLO_WORLD_TIMEZONE").ok().and_then(|s| s.parse().ok()).unwrap_or(chrono_tz::UTC);
+    context.insert("timestamp", &Utc::now().with_timezone(&timezone).format("%Y-%m-%d %H:%M:%S").to_string());
 
     match fetch_dashboard_value().await {
         Ok(value) => {
