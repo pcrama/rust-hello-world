@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::error::Error;
 use std::num::ParseFloatError;
 use std::str::FromStr;
@@ -141,6 +142,165 @@ mod tests {
             None
         );
     }
+
+    #[test]
+    fn parse_lines_nonsense_returns_ok_none() {
+        assert_eq!(
+            parse_lines("a\nb\nc".lines()).expect("Ok(None) expected here"),
+            None,
+        )
+    }
+
+    #[test]
+    fn parse_lines_happy_path() {
+        assert_eq!(
+            parse_lines("\n0-0:1.0.0(241025000000S)\n\n1-0:1.8.1(002654.919*kWh)\n\n1-0:1.8.2(002420.293*kWh)\n\n1-0:2.8.1(006254.732*kWh)\n\n1-0:2.8.2(002457.202*kWh)".lines()).expect("Ok(some meas) expected here"),
+            Some(CompleteP1Measurement { timestamp: Date::from_calendar_date(2024, Month::October, 25).unwrap().midnight().assume_utc(), peak_hour_consumption: 2654.919, off_hour_consumption: 2420.293, peak_hour_injection: 6254.732, off_hour_injection: 2457.202 }),
+        )
+    }
+}
+
+#[derive(PartialEq, Debug)]
+struct PartialP1Measurement {
+    timestamp: Option<OffsetDateTime>,
+    peak_hour_consumption: Option<f64>,
+    off_hour_consumption: Option<f64>,
+    peak_hour_injection: Option<f64>,
+    off_hour_injection: Option<f64>,
+}
+
+#[derive(PartialEq, Debug)]
+struct CompleteP1Measurement {
+    timestamp: OffsetDateTime,
+    peak_hour_consumption: f64,
+    off_hour_consumption: f64,
+    peak_hour_injection: f64,
+    off_hour_injection: f64,
+}
+
+fn complete_p1_measurement(
+    partial: PartialP1Measurement,
+) -> Result<CompleteP1Measurement, PartialP1Measurement> {
+    match partial {
+        PartialP1Measurement {
+            timestamp: Some(timestamp),
+            peak_hour_consumption: Some(peak_hour_consumption),
+            off_hour_consumption: Some(off_hour_consumption),
+            peak_hour_injection: Some(peak_hour_injection),
+            off_hour_injection: Some(off_hour_injection),
+        } => Ok(CompleteP1Measurement {
+            timestamp: timestamp,
+            peak_hour_consumption: peak_hour_consumption,
+            off_hour_consumption: off_hour_consumption,
+            peak_hour_injection: peak_hour_injection,
+            off_hour_injection: off_hour_injection,
+        }),
+        _ => Err(partial),
+    }
+}
+
+fn step_partial_p1_measurement(
+    partial: PartialP1Measurement,
+    line: &str,
+) -> Result<PartialP1Measurement, Box<dyn Error>> {
+    match partial {
+        PartialP1Measurement {
+            timestamp: None, ..
+        } => match parse_date_time(line)? {
+            Some(timestamp) => Ok(PartialP1Measurement {
+                timestamp: Some(timestamp),
+                peak_hour_consumption: None,
+                off_hour_consumption: None,
+                peak_hour_injection: None,
+                off_hour_injection: None,
+            }),
+            _ => Ok(partial),
+        },
+        PartialP1Measurement {
+            timestamp: Some(timestamp),
+            peak_hour_consumption: None,
+            ..
+        } => match parse_kwh(line, "1-0:1.8.1(")? {
+            Some(kwh) => Ok(PartialP1Measurement {
+                timestamp: Some(timestamp),
+                peak_hour_consumption: Some(kwh),
+                off_hour_consumption: None,
+                peak_hour_injection: None,
+                off_hour_injection: None,
+            }),
+            _ => Ok(partial),
+        },
+        PartialP1Measurement {
+            timestamp: Some(timestamp),
+            peak_hour_consumption: Some(peak_hour_consumption),
+            off_hour_consumption: None,
+            ..
+        } => match parse_kwh(line, "1-0:1.8.2(")? {
+            Some(kwh) => Ok(PartialP1Measurement {
+                timestamp: Some(timestamp),
+                peak_hour_consumption: Some(peak_hour_consumption),
+                off_hour_consumption: Some(kwh),
+                peak_hour_injection: None,
+                off_hour_injection: None,
+            }),
+            _ => Ok(partial),
+        },
+        PartialP1Measurement {
+            timestamp: Some(timestamp),
+            peak_hour_consumption: Some(peak_hour_consumption),
+            off_hour_consumption: Some(off_hour_consumption),
+            peak_hour_injection: None,
+            ..
+        } => match parse_kwh(line, "1-0:2.8.1(")? {
+            Some(kwh) => Ok(PartialP1Measurement {
+                timestamp: Some(timestamp),
+                peak_hour_consumption: Some(peak_hour_consumption),
+                off_hour_consumption: Some(off_hour_consumption),
+                peak_hour_injection: Some(kwh),
+                off_hour_injection: None,
+            }),
+            _ => Ok(partial),
+        },
+        PartialP1Measurement {
+            timestamp: Some(timestamp),
+            peak_hour_consumption: Some(peak_hour_consumption),
+            off_hour_consumption: Some(off_hour_consumption),
+            peak_hour_injection: Some(peak_hour_injection),
+            off_hour_injection: None,
+            ..
+        } => match parse_kwh(line, "1-0:2.8.2(")? {
+            Some(kwh) => Ok(PartialP1Measurement {
+                timestamp: Some(timestamp),
+                peak_hour_consumption: Some(peak_hour_consumption),
+                off_hour_consumption: Some(off_hour_consumption),
+                peak_hour_injection: Some(peak_hour_injection),
+                off_hour_injection: Some(kwh),
+            }),
+            _ => Ok(partial),
+        },
+        _ => Ok(partial),
+    }
+}
+
+fn parse_lines<T>(lines: T) -> Result<Option<CompleteP1Measurement>, Box<dyn Error>>
+where
+    T: IntoIterator,
+    T::Item: Borrow<str>,
+{
+    let mut partial = PartialP1Measurement {
+        timestamp: None,
+        peak_hour_consumption: None,
+        off_hour_consumption: None,
+        peak_hour_injection: None,
+        off_hour_injection: None,
+    };
+    for line in lines.into_iter() {
+        match complete_p1_measurement(step_partial_p1_measurement(partial, line.borrow())?) {
+            Ok(complete) => return Ok(Some(complete)),
+            Err(new_partial) => partial = new_partial,
+        }
+    }
+    return Ok(None);
 }
 
 fn main() {
@@ -174,4 +334,9 @@ fn main() {
             .expect("Some(date) expected here")
             .expect("date expected here")
     );
+    let mut idx = 0;
+    for line in "\n0-0:1.0.0(241025191816S)\n\n1-0:1.8.1(002654.919*kWh)\n\n1-0:1.8.2(002420.293*kWh)\n\n1-0:2.8.1(006254.732*kWh)\n\n1-0:2.8.2(002457.202*kWh)".lines() {
+        idx = idx + 1;
+        println!("{}: {}", idx, line);
+    }
 }
