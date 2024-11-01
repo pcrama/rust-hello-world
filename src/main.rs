@@ -1,10 +1,9 @@
-use std::io::prelude::*;
-use std::process::{Command, Stdio};
 use std::borrow::Borrow;
 use std::error::Error;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 use time::{Date, Month, OffsetDateTime, UtcOffset};
+pub mod data;
 
 // 0-0:1.0.0(241025191816S)
 //
@@ -305,43 +304,11 @@ where
     return Ok(None);
 }
 
-fn call_sqlite3 (input: &str) -> String {
-    let mut cmd = Command::new("sqlite3");
-    let process = match cmd
-                                .stdin(Stdio::piped())
-                                .stdout(Stdio::piped())
-                                .spawn() {
-        Err(why) => panic!("couldn't spawn sqlite3: {}", why),
-        Ok(process) => process,
-    };
-
-    // stdin has type Option<ChildStdin>, but since we know this instance
-    // must have one, we can directly unwrap it.
-    match process.stdin.unwrap().write_all(input.as_bytes()) {
-        Err(why) => panic!("couldn't write to sqlite3 stdin: {}", why),
-        Ok(_) => {}
-    }
-
-    // Because stdin does not live after the above calls, it is drop-ed,
-    // and the pipe is closed.
-    //
-    // This is very important, otherwise sqlite3 wouldn't start processing the
-    // input we just sent.
-
-    // The stdout field also has type Option<ChildStdout> so must be unwrapped.
-    let mut s = String::new();
-    match process.stdout.unwrap().read_to_string(&mut s) {
-        Err(why) => panic!("couldn't read sqlite3 stdout: {}", why),
-        Ok(_) => {},
-    }
-    return s;
-}
-
 fn main() {
     println!("Hello, world!");
     println!(
         "sqlite3: {}",
-        call_sqlite3(".mode json\nCREATE TABLE t (a INTEGER, b STRING);INSERT INTO t VALUES (123, 'a string|gnirts a');SELECT * FROM t;"));
+        data::call_sqlite3("sqlite3", ".mode json\nCREATE TABLE t (a INTEGER, b STRING);INSERT INTO t VALUES (123, 'a string|gnirts a');SELECT * FROM t;"));
     match strip_prefix_and_suffix("1-0:2.8.2(002457.202*kWh)", "1-0:1.8.2(", "*kWh)") {
         Some(x) => println!("?{}?", x),
         None => println!("OK"),
