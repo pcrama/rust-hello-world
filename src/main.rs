@@ -171,7 +171,7 @@ struct PartialP1Measurement {
 }
 
 #[derive(PartialEq, Debug)]
-struct CompleteP1Measurement {
+pub struct CompleteP1Measurement {
     timestamp: OffsetDateTime,
     peak_hour_consumption: f64,
     off_hour_consumption: f64,
@@ -190,11 +190,11 @@ fn complete_p1_measurement(
             peak_hour_injection: Some(peak_hour_injection),
             off_hour_injection: Some(off_hour_injection),
         } => Ok(CompleteP1Measurement {
-            timestamp: timestamp,
-            peak_hour_consumption: peak_hour_consumption,
-            off_hour_consumption: off_hour_consumption,
-            peak_hour_injection: peak_hour_injection,
-            off_hour_injection: off_hour_injection,
+            timestamp,
+            peak_hour_consumption,
+            off_hour_consumption,
+            peak_hour_injection,
+            off_hour_injection,
         }),
         _ => Err(partial),
     }
@@ -283,7 +283,7 @@ fn step_partial_p1_measurement(
     }
 }
 
-fn parse_lines<T>(lines: T) -> Result<Option<CompleteP1Measurement>, Box<dyn Error>>
+pub fn parse_lines<T>(lines: T) -> Result<Option<CompleteP1Measurement>, Box<dyn Error>>
 where
     T: IntoIterator,
     T::Item: Borrow<str>,
