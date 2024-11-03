@@ -52,6 +52,33 @@ pub struct Data202303 {
     water_m3: Option<f64>,
 }
 
+fn some_val_to_sql<A>(v: Option<A>) -> String
+where
+    A: Display,
+{
+    match v {
+        Some(v) => format!("{}", v),
+        None => "NULL".to_string(),
+    }
+}
+
+pub fn insert_data_202303(cmd: &str, meas: &Data202303) -> Result<usize, String> {
+    let sql_output = call_sqlite3(
+        cmd,
+        format!(
+            ".mode list\ninsert into data_202303 values ({}, {}, {}, {}, {}, {}, {}, {}, {});select count(*) from data_202303;",
+            meas.timestamp,
+            &some_val_to_sql(meas.pv2012_kWh),
+            &some_val_to_sql(meas.pv2022_kWh),
+            &some_val_to_sql(meas.peak_conso_kWh),
+            &some_val_to_sql(meas.off_conso_kWh),
+            &some_val_to_sql(meas.peak_inj_kWh),
+            &some_val_to_sql(meas.off_inj_kWh),
+            &some_val_to_sql(meas.gas_m3),
+            &some_val_to_sql(meas.water_m3)).as_str());
+    usize::from_str(&sql_output.trim()).map_err(|e| format!("{}", e))
+}
+
 fn some_str_to_result<B, C, F>(a: Option<&str>, f: F) -> Result<Option<B>, String>
 where
     F: FnOnce(&str) -> Result<B, C>,
@@ -81,7 +108,7 @@ pub fn select_data_202208(cmd: &str) -> Result<Vec<Data202208>, String> {
             return Err("No row count for data_202208".to_string());
         }
         Some(Err(_)) => {
-            return Err("Malformed row count dor data_202208".to_string());
+            return Err("Malformed row count for data_202208".to_string());
         }
     };
     let mut result = Vec::<Data202208>::with_capacity(count);
@@ -95,7 +122,7 @@ pub fn select_data_202208(cmd: &str) -> Result<Vec<Data202208>, String> {
             Some(Err(_)) => return Err("Unable to parse timestamp".to_string()),
         };
         result.push(Data202208 {
-            timestamp: timestamp,
+            timestamp,
             pv2012_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             pv2022_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             peak_conso_kWh: some_str_to_result(cols.next(), f64::from_str)?,
@@ -110,7 +137,7 @@ pub fn select_data_202208(cmd: &str) -> Result<Vec<Data202208>, String> {
 pub fn select_data_202303(cmd: &str) -> Result<Vec<Data202303>, String> {
     let sql_output = call_sqlite3(
         cmd,
-        ".mode list\nselect count(*) from data_202303;\nselect timestamp, pv2012_kWh, pv2022_kWh, peak_conso_kWh, peak_inj_kWh, off_conso_kWh, off_inj_kWh, gas_m3, water_m3 from data_202303;",
+        ".mode list\nselect count(*) from data_202303;\nselect timestamp, pv2012_kWh, pv2022_kWh, peak_conso_kWh, off_conso_kWh, peak_inj_kWh, off_inj_kWh, gas_m3, water_m3 from data_202303;",
     );
     let mut info = sql_output.lines();
     let count = match info.next().map(usize::from_str) {
@@ -119,7 +146,7 @@ pub fn select_data_202303(cmd: &str) -> Result<Vec<Data202303>, String> {
             return Err("No row count for data_202208".to_string());
         }
         Some(Err(_)) => {
-            return Err("Malformed row count dor data_202208".to_string());
+            return Err("Malformed row count for data_202208".to_string());
         }
     };
     let mut result = Vec::<Data202303>::with_capacity(count);
@@ -133,12 +160,12 @@ pub fn select_data_202303(cmd: &str) -> Result<Vec<Data202303>, String> {
             Some(Err(_)) => return Err("Unable to parse timestamp".to_string()),
         };
         result.push(Data202303 {
-            timestamp: timestamp,
+            timestamp,
             pv2012_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             pv2022_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             peak_conso_kWh: some_str_to_result(cols.next(), f64::from_str)?,
-            peak_inj_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             off_conso_kWh: some_str_to_result(cols.next(), f64::from_str)?,
+            peak_inj_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             off_inj_kWh: some_str_to_result(cols.next(), f64::from_str)?,
             gas_m3: some_str_to_result(cols.next(), f64::from_str)?,
             water_m3: some_str_to_result(cols.next(), f64::from_str)?,
@@ -236,8 +263,8 @@ mod tests {
                 pv2012_kWh: Some(50621.3),
                 pv2022_kWh: Some(3579.4),
                 peak_conso_kWh: None,
-                off_conso_kWh: Some(630.0),
-                peak_inj_kWh: None,
+                off_conso_kWh: None,
+                peak_inj_kWh: Some(630.0),
                 off_inj_kWh: Some(1189.4),
                 gas_m3: Some(28973.5),
                 water_m3: Some(867.5)
@@ -250,12 +277,31 @@ mod tests {
                 pv2012_kWh: None,
                 pv2022_kWh: Some(3579.9),
                 peak_conso_kWh: None,
-                peak_inj_kWh: None,
                 off_conso_kWh: None,
+                peak_inj_kWh: None,
                 off_inj_kWh: None,
                 gas_m3: None,
                 water_m3: None
             }
         );
+    }
+
+    #[test]
+    fn can_insert_data_202303() {
+        let result = insert_data_202303(
+            "sed -n -e '/insert into data_202303 values (1695485100, 50622\\.3, 3579\\.4, NULL, 630, 321, 1189\\.4, 28973\\.5, 867\\.5);select count(\\*) from data_202303;/{ s/.*/1234/p; d; p }'",
+            &Data202303 {
+                timestamp: 1695485100,
+                pv2012_kWh: Some(50622.3),
+                pv2022_kWh: Some(3579.4),
+                peak_conso_kWh: None,
+                off_conso_kWh: Some(630.0),
+                peak_inj_kWh: Some(321.0),
+                off_inj_kWh: Some(1189.4),
+                gas_m3: Some(28973.5),
+                water_m3: Some(867.5)
+            }
+        );
+        assert_eq!(result.unwrap(), 1234)
     }
 }
