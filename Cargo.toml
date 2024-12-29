@@ -19,6 +19,7 @@ serde_json = "1.0"
 serde_urlencoded = "0.7.1"
 tera = "1.18.1"
 tokio = { version = "1.0", features = ["process"] }
+time = "0.3.36"
 
 [lib]
 name = "hello_world_lib"
