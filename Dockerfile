@@ -1,5 +1,5 @@
 # Start with a base image that has Rust installed
-FROM rust:1.72 as builder
+FROM rust:1.82 as builder
 
 # Set the working directory for the build
 WORKDIR /usr/src/app
