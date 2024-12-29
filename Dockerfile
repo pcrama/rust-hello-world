@@ -14,7 +14,7 @@ COPY src ./src
 RUN cargo build --release
 
 # Use a minimal Docker image for the final artifact
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 # Set the working directory for the final container
 WORKDIR /usr/local/bin
