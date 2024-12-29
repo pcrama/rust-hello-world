@@ -27,9 +27,11 @@ I started with the following prompt:
 3. Put [[file:doc/rust-hello-world.service][rust-hello-world.service]] into the =/etc/systemd/system/= directory and
    enable the service =sudo systemctl restart rust-hello-world=.
 
+   Make sure that the listening address and port (=RUST_HELLO_WORLD_BIND_TO=)
+   match the configuration in [[file:./doc/20-rust-hello-world.conf][20-rust-hello-world.conf]].
+
 4. Setup certificate and environment variables (in service file)
    #+begin_src shell :exports code
-     RUST_HELLO_WORLD_DHCP_LEASES="/etc/pihole/dhcp.leases"
      RUST_HELLO_WORLD_REMOTE_SERVER_HOST="SMA3xxxxxxxx5"
      RUST_HELLO_WORLD_REMOTE_SERVER_PATH="dyn/getDashValues.json"
      RUST_HELLO_WORLD_REMOTE_SERVER_CERT=/some/location/that/survives/reboots/inverter-webui-cert.pem

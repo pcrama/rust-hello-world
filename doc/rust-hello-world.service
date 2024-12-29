@@ -12,6 +12,8 @@ Environment="RUST_HELLO_WORLD_DHCP_LEASES=/etc/pihole/dhcp.leases"
 Environment="RUST_HELLO_WORLD_REMOTE_SERVER_HOST=SMA3xxxxxxxx5"
 Environment="RUST_HELLO_WORLD_REMOTE_SERVER_PATH=dyn/getDashValues.json"
 Environment="RUST_HELLO_WORLD_REMOTE_SERVER_CERT=/some/location/that/survives/reboots/inverter-webui-cert.pem"
+# Cf lightppd settings
+Environment="RUST_HELLO_WORLD_BIND_TO=127.0.0.1:3000"
 WorkingDirectory=/home/pi/hello_world/target/release/
 ExecStart=/home/pi/hello_world/target/release/hello_world
 RestartSec=10
