@@ -31,7 +31,7 @@ pub fn empty_string_as_none(
     }
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 #[allow(non_snake_case)]
 pub struct MeterReadingsUserInput {
     pub timestamp: String,
@@ -178,7 +178,7 @@ pub fn get_ip_address(dhcp_lease_file: &str, hostname: &str) -> String {
         let columns: Vec<&str> = line.split_whitespace().collect();
 
         if columns.len() >= 4 && columns[3].eq_ignore_ascii_case(hostname) {
-            return columns[2].to_string()
+            return columns[2].to_string();
         }
     }
 
@@ -194,10 +194,12 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
 
     // Call the external curl command asynchronously
     let response = Command::new("curl")
-        .arg("--silent")  // Silent mode, suppresses progress bar
-        .arg("--insecure")  // don't worry about certificates
-        .arg("--connect-timeout").arg("1")
-        .arg("--max-time").arg("2")
+        .arg("--silent") // Silent mode, suppresses progress bar
+        .arg("--insecure") // don't worry about certificates
+        .arg("--connect-timeout")
+        .arg("1")
+        .arg("--max-time")
+        .arg("2")
         .arg(dashboard_url)
         .output()
         .await
@@ -207,7 +209,8 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
         return Err(format!(
             "Curl request failed with status: {}... {}",
             response.status,
-            std::str::from_utf8(&response.stderr).map_err(|e| format!("Failed to decode curl's stderr: {}", e))?
+            std::str::from_utf8(&response.stderr)
+                .map_err(|e| format!("Failed to decode curl's stderr: {}", e))?
         ));
     }
 
@@ -216,8 +219,8 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
         .map_err(|e| format!("Failed to parse curl response as UTF-8: {}", e))?;
 
     print!("response_text={}", response_text);
-    let json: Value = serde_json::from_str(response_text)
-        .map_err(|e| format!("Unable to parse JSON: {}", e))?;
+    let json: Value =
+        serde_json::from_str(response_text).map_err(|e| format!("Unable to parse JSON: {}", e))?;
     let value = json["result"]["0199-xxxxx9BD"]["6400_00260100"]["1"][0]["val"]
         .as_f64()
         .ok_or("Invalid JSON response")?;
@@ -228,8 +231,17 @@ async fn fetch_dashboard_value() -> core::result::Result<f64, String> {
 #[get("/forms/meter-readings")]
 pub async fn get_meter_readings_form(tera: web::Data<Tera>) -> HttpResponse {
     let mut context = tera::Context::new();
-    let timezone: Tz = get_env_var("RUST_HELLO_WORLD_TIMEZONE").ok().and_then(|s| s.parse().ok()).unwrap_or(chrono_tz::UTC);
-    context.insert("timestamp", &Utc::now().with_timezone(&timezone).format("%Y-%m-%d %H:%M:%S").to_string());
+    let timezone: Tz = get_env_var("RUST_HELLO_WORLD_TIMEZONE")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(chrono_tz::UTC);
+    context.insert(
+        "timestamp",
+        &Utc::now()
+            .with_timezone(&timezone)
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string(),
+    );
 
     match fetch_dashboard_value().await {
         Ok(value) => {
